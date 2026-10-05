@@ -4,10 +4,20 @@ One Android app with calm puzzle and play games for children and families. No ad
 
 Website and privacy policy: https://play.mwmai.no
 
+## Download
+
+Latest test build (debug APK, Android 7.0+, arm64 and 32-bit ARM, about 195 MB):
+**https://github.com/Matswm86/mwm-play/releases/download/latest/mwm-play.apk**
+
+Open the link on the phone, then allow "Install unknown apps" for the browser when Android asks. The link always points to the newest build from `main`.
+
 ## Games inside
 
 - Ball Connect
 - Water Sort
+- Tile Explorer
+- Spotless
+- Timber Valley
 
 More games join one at a time as they pass the child-safety checks in `docs/CHILD_UX_RESEARCH.md`.
 
