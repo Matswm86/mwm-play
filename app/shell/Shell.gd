@@ -16,7 +16,7 @@ const SCREENS := {
 	"done": "res://shell/screens/DoneForNow.tscn",
 }
 ## Games integrated in this build, in tile order. Cards exist only for these.
-const GAMES := ["ball-connect", "water-sort", "spotless", "timber-valley"]
+const GAMES := ["ball-connect", "water-sort", "tile-explorer", "spotless", "timber-valley"]
 ## Ignore every touch for this long after a screen change (rule 8).
 const HOLDOVER_MS: int = 300
 const CROSSFADE_S: float = 0.18

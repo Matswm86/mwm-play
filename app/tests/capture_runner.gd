@@ -6,8 +6,11 @@ extends Node
 ## home -> Timber Valley again (money and offline earnings kept) -> start ->
 ## Spotless (finish an object, win card) -> home -> Timber Valley -> home ->
 ## Spotless again (level kept, own sound-off setting kept, Master unmuted) ->
-## gear -> gate -> wrong code -> right code -> parent area -> licences, then
-## checks saved progress and the play-limit stop. Taps are real touch events;
+## Tile Explorer (home tap never reaches the board, a board tap does, level 5
+## win card) -> home -> Spotless -> home -> Tile Explorer again (level kept,
+## shell MSAA and clear colour restored after each visit) -> gear -> gate ->
+## wrong code -> right code -> parent area -> licences, then checks saved
+## progress and the play-limit stop. Taps are real touch events;
 ## Android back is the real window notification. Run under Xvfb with
 ## CAPTURE_DIR set. Wipes this app's own test saves at start.
 
@@ -29,6 +32,7 @@ func _run() -> void:
 		"ball_connect_save.json",
 		"timber_valley_save.json",
 		"spotless_save.json",
+		"tile_explorer_save.json",
 	]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path("user://" + f))
 	# Seed Ball Connect at old level 3 (save v1) to prove the merged game reads
@@ -104,6 +108,7 @@ func _run() -> void:
 
 	await _timber_round_trip()
 	await _spotless_round_trip()
+	await _tile_explorer_round_trip()
 
 	# ---- Parent gate and parent area
 	await _tap(_center(_scene().adult_corner))
@@ -336,6 +341,169 @@ func _timber_state(tag: String) -> void:
 
 func _joy(hud: Node) -> String:
 	return "active=%s visible=%s" % [hud._touch_index != -1, hud.joy_base.visible]
+
+
+# ---------------------------------------------------------------- Tile Explorer
+
+
+func _tile_explorer_round_trip() -> void:
+	# Fresh start (save wiped above): level 1.
+	await _tap(_center(_scene().tiles["tile-explorer"]))
+	await _wait(3.0)
+	_tile_state("TILE first enter")
+	await _shot("tile_explorer_l1")
+	var game: Node = _scene()
+	var board: Node = game.get("board")
+	var tray: Node = game.get("tray")
+
+	await _home_tap_proof(board, tray)
+	await _shot("tile_explorer_home_guard")
+	await _wait(2.4)  # let the guard expire, so the next tap is a board tap only
+
+	# Board tap away from the corner: the nearest free tile to the screen centre.
+	var cam: Camera3D = get_viewport().get_camera_3d()
+	var target: Node3D = null
+	var best := INF
+	for t in board.get("tiles"):
+		if t.get("blocked") or t.get("in_tray"):
+			continue
+		var sp := cam.unproject_position(t.global_position)
+		var d := sp.distance_to(Vector2(540, 900))
+		if d < best:
+			best = d
+			target = t
+	var tap_at := cam.unproject_position(target.global_position)
+	var before := [board.call("remaining_count"), tray.call("size")]
+	var probe: Node = _input_probe(game)
+	await _tap(tap_at)
+	await _wait(1.0)
+	var after := [board.call("remaining_count"), tray.call("size")]
+	print(
+		"BOARD TAP at ", tap_at, ": touches reaching the game=", probe.get("touches"),
+		" board/tray before=", before, " after=", after,
+		" guard active=", Shell._home.guard_active(),
+		" => ", "PASS (tile went to the tray)" if after[1] == before[1] + 1 else "FAIL",
+	)
+	await _shot("tile_explorer_board_tap")
+	await _home_twice()
+	_tile_left("AFTER Tile Explorer home (level 1)")
+
+	# Level 5 (seeded save), then the win card: the play-limit stopping point.
+	var te := FileAccess.open("user://tile_explorer_save.json", FileAccess.WRITE)
+	te.store_string('{"version": 1, "current_level": 5, "highest_level": 5}')
+	te.close()
+	await _tap(_center(_scene().tiles["tile-explorer"]))
+	await _wait(3.0)
+	_tile_state("TILE level 5 enter")
+	await _shot("tile_explorer_l5")
+	await _home_tap_proof(_scene().get("board"), _scene().get("tray"))
+	await _wait(2.4)
+	print("  stopping point while playing: ",
+		Shell.adapters["tile-explorer"].is_at_stopping_point(_scene()))
+	_scene().call("_win")
+	await _wait(1.0)
+	print("  stopping point on the win card: ",
+		Shell.adapters["tile-explorer"].is_at_stopping_point(_scene()))
+	await _shot("tile_explorer_l5_win")
+	await _home_twice()
+	_tile_left("AFTER Tile Explorer home (level 5 won)")
+
+	await _tap(_center(_scene().tiles["spotless"]))
+	await _wait(3.0)
+	_spotless_state("SPOTLESS between Tile Explorer visits")
+	await _shot("spotless_after_tile_explorer")
+	await _home_twice()
+	print("AFTER Spotless home: screen=", Shell.current_screen,
+		" msaa_3d=", get_tree().root.msaa_3d)
+
+	await _tap(_center(_scene().tiles["tile-explorer"]))
+	await _wait(3.0)
+	_tile_state("TILE re-enter")
+	await _shot("tile_explorer_reenter")
+	await _home_twice()
+	_tile_left("AFTER second Tile Explorer home")
+	await _shot("start_after_tile_explorer")
+
+
+## Taps the home disc once and proves the touch never reached the game: an
+## input probe in the game scene counts every touch that gets to
+## _unhandled_input (where the board listens), and no tile may move. Also
+## reports whether the board would have picked a tile at that point.
+func _home_tap_proof(board: Node, tray: Node) -> void:
+	var probe_at := Vector2(104, 104)
+	var reachable := false
+	for y in range(8, 216, 16):
+		for x in range(8, 216, 16):
+			var t: Node = board.call("pick_tile_for_touch", Vector2(x, y))
+			if t != null and not t.get("blocked"):
+				probe_at = Vector2(x, y)
+				reachable = true
+				break
+		if reachable:
+			break
+	var probe: Node = _input_probe(_scene())
+	var before := [board.call("remaining_count"), tray.call("size")]
+	await _touch(probe_at, true)
+	var pressed: Variant = board.get("_pressed_tile")
+	await _touch(probe_at, false)
+	await _wait(0.6)
+	var after := [board.call("remaining_count"), tray.call("size")]
+	var ok: bool = before == after and int(probe.get("touches")) == 0 and pressed == null
+	print(
+		"HOME TAP at ", probe_at, " (board would pick a free tile there: ", reachable, "): ",
+		"guard active=", Shell._home.guard_active(),
+		" touches reaching the game=", probe.get("touches"),
+		" board pressed tile=", pressed, " board/tray before=", before, " after=", after,
+		" => ", "PASS" if ok else "FAIL",
+	)
+	probe.queue_free()
+
+
+## A child of the game scene that counts touches reaching _unhandled_input.
+func _input_probe(game: Node) -> Node:
+	var s := GDScript.new()
+	s.source_code = (
+		"extends Node\nvar touches := 0\n"
+		+ "func _unhandled_input(e: InputEvent) -> void:\n"
+		+ "\tif e is InputEventScreenTouch:\n\t\ttouches += 1\n"
+	)
+	s.reload()
+	var n := Node.new()
+	n.set_script(s)
+	game.add_child(n)
+	return n
+
+
+func _home_twice() -> void:
+	await _tap(Vector2(104, 104))
+	await _wait(0.5)
+	if not Shell._home.guard_active():
+		print("  guard expired; re-arming")
+		await _tap(Vector2(104, 104))
+		await _wait(0.4)
+	await _tap(Vector2(104, 104))
+	await _wait(1.0)
+
+
+func _tile_state(tag: String) -> void:
+	var g: Node = _scene()
+	print(
+		tag, ": scene=", g.scene_file_path, " level=", g.get("current_level"),
+		" label=", g.get("level_label").text, " state=", g.get("state"),
+		" msaa_3d=", get_tree().root.msaa_3d,
+		" clear=", RenderingServer.get_default_clear_color(),
+	)
+
+
+func _tile_left(tag: String) -> void:
+	print(
+		tag, ": screen=", Shell.current_screen, " scene=", _scene().name,
+		" msaa_3d=", get_tree().root.msaa_3d,
+		" clear=", RenderingServer.get_default_clear_color(),
+		" shell paper=", ShellUi.PAPER,
+	)
+	_print_file("user://tile_explorer_save.json")
+	_music_check(tag)
 
 
 # ---------------------------------------------------------------- helpers
