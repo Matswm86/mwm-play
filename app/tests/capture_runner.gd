@@ -63,7 +63,7 @@ func _run() -> void:
 	await _solve_water_sort(ws)
 	await _wait(1.6)
 	await _shot("water_sort_won")
-	var next_btn: Control = ws.win_panel.find_children("*", "Button", true, false)[0]
+	var next_btn: Control = ws.btn_next
 	await _tap(_center(next_btn))
 	await _wait(0.6)
 	print("WATER SORT after Next: ", ws.level_label.text)
