@@ -8,5 +8,22 @@
     "repo": "../water-sort",
     "prefix": "Ws",
     "autoloads": {}
+  },
+  "timber-valley": {
+    "repo": "../timber-valley",
+    "prefix": "Tv",
+    "autoloads": {
+      "Game": {
+        "name": "TimberGame",
+        "path": "scripts/Game.gd"
+      },
+      "Sfx": {
+        "name": "TimberSfx",
+        "path": "scripts/Sfx.gd"
+      }
+    },
+    "exclude": [
+      "scripts/PerfOverlay.gd"
+    ]
   }
 }

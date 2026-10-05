@@ -12,7 +12,12 @@ Usage: tools/sync_game.py <slug> [<sha>]
   3. Autoload names (games.json "autoloads": {"Old": {"name": "New", "path": "scripts/Old.gd"}})
      -> renamed in code and registered in app/project.godot.
   4. "user://name -> "user://<slug>_name, unless the name already starts with
-     the slug (ball_connect_save.json stays as it is).
+     the slug plus "_" in either form (ball_connect_save.json and
+     timber_valley_save.json stay as they are).
+- games.json "exclude": runtime files not copied (Timber's PerfOverlay.gd: the
+  shell registers its own PerfOverlay autoload). *.md notes under assets/ are
+  never copied (docs stay in the source repo).
+- The owner's first name in .gd comments becomes "the owner" (public repo).
 - Keeps the .import / .uid sidecars of the previous sync when the source repo
   does not commit them (water-sort gitignores *.import) and the asset is still
   there, so their uid:// values stay stable. Any importable asset still
@@ -40,6 +45,7 @@ APP = ROOT / "app"
 RUNTIME_DIRS = ("scenes", "scripts", "assets", "data")
 TEXT_SUFFIXES = {".gd", ".tscn", ".tres", ".gdshader", ".import", ".cfg", ".json"}
 RES_RE = re.compile(r"res://(?!\.godot/)")
+OWNER_RE = re.compile(r"\bMats\b")
 SIDECARS = (".import", ".uid")
 IMPORTABLE = {
     ".wav",
@@ -135,11 +141,13 @@ def rename_identifiers(src: str, mapping: dict[str, str]) -> str:
 
 
 def rewrite_user_paths(text: str, slug: str) -> str:
-    own = slug.replace("-", "_")
+    # Names already carrying the slug (ball_connect_save.json,
+    # timber_valley_save.json, an earlier water-sort_save.cfg) stay unchanged.
+    own = (f"{slug}_", f"{slug.replace('-', '_')}_")
 
     def fix(m: re.Match[str]) -> str:
         name = m.group(2)
-        if name.startswith((slug, own)):
+        if name.startswith(own):
             return m.group(0)
         return f"{m.group(1)}user://{slug}_{name}"
 
@@ -253,6 +261,11 @@ def sync(slug: str, sha: str | None) -> None:
         stage.mkdir()
         with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
             tar.extractall(stage, filter="data")
+        for rel in cfg.get("exclude", []):
+            for f in (stage / rel, stage / f"{rel}.uid", stage / f"{rel}.import"):
+                f.unlink(missing_ok=True)
+        for md in stage.rglob("*.md"):
+            md.unlink()
 
         classes: dict[str, str] = {}
         for gd in stage.rglob("*.gd"):
@@ -269,6 +282,7 @@ def sync(slug: str, sha: str | None) -> None:
             if f.suffix == ".gd":
                 new = rename_identifiers(new, names)
                 new = rewrite_user_paths(new, slug)
+                new = OWNER_RE.sub("the owner", new)
             if new != text:
                 f.write_text(new)
 
