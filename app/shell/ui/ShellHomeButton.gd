@@ -6,6 +6,8 @@ extends ShellTap
 ## In games it uses the "tap again" guard (rule 10): the first tap starts a
 ## 2.0 s ring, a second tap between 300 ms (holdover floor, rule 8) and
 ## 2.0 s leaves. On shell screens guard = false and one tap leaves.
+## With back_arrow = true the disc shows a left arrow instead of the house:
+## adult sub-pages use it to go up one level (same disc, same hit area).
 
 signal leave_requested
 
@@ -19,6 +21,7 @@ const HOLDOVER_MS: int = 300
 const FADE_S: float = 0.25
 
 var guard: bool = true
+var back_arrow: bool = false
 var _guard_start: int = -1
 var _fade: float = 0.0
 var _pop: float = 0.0
@@ -106,4 +109,7 @@ func _draw() -> void:
 		draw_circle(c + Vector2(0, 6), DISC_D * 0.5 + 2.0, Color(0, 0, 0, 0.12))
 	draw_circle(c, disc_d * 0.5, ShellUi.GREEN_SOFT if is_down else ShellUi.CARD)
 	draw_arc(c, disc_d * 0.5 - 2.5, 0, TAU, 96, ShellUi.INK, 5.0, true)
-	ShellUi.draw_house(self, c + Vector2(0, -2), 68.0 * disc_d / DISC_D, ShellUi.INK)
+	if back_arrow:
+		ShellUi.draw_back_arrow(self, c, 68.0 * disc_d / DISC_D, ShellUi.INK)
+	else:
+		ShellUi.draw_house(self, c + Vector2(0, -2), 68.0 * disc_d / DISC_D, ShellUi.INK)

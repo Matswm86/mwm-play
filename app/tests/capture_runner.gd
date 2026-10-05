@@ -9,7 +9,8 @@ extends Node
 ## Tile Explorer (home tap never reaches the board, a board tap does, level 5
 ## win card) -> home -> Spotless -> home -> Tile Explorer again (level kept,
 ## shell MSAA and clear colour restored after each visit) -> gear -> gate ->
-## wrong code -> right code -> parent area -> licences, then checks saved
+## wrong code -> right code -> parent area -> licences -> back arrow ->
+## parent area -> privacy -> Android back (twice) -> start, then checks saved
 ## progress and the play-limit stop. Taps are real touch events;
 ## Android back is the real window notification. Run under Xvfb with
 ## CAPTURE_DIR set. Wipes this app's own test saves at start.
@@ -159,9 +160,25 @@ func _run() -> void:
 			lic.scroll.scroll_vertical = int(l.position.y) - 20
 	await _wait(0.4)
 	await _shot("licences_fonts")
+	# Top-left back arrow on the sub-page: one tap lands on the parent area.
+	print("LICENCES top-left button is a back arrow: ", lic.back.back_arrow)
+	await _tap(Vector2(104, 104))
+	await _wait(0.8)
+	var arrow_ok: bool = Shell.current_screen == "parent" and _scene().has_method("_refresh")
+	print(
+		"BACK ARROW from licences: screen=", Shell.current_screen, " scene=", _scene().name,
+		" => ", "PASS" if arrow_ok else "FAIL",
+	)
+	await _shot("parent_area_after_back_arrow")
+	# Android back still goes up one level too.
+	_scene().scroll.scroll_vertical = 100000
+	await _wait(0.4)
+	await _tap(_center(_scene().rows["privacy"]))
+	await _wait(0.8)
+	await _shot("privacy")
 	_back()
 	await _wait(0.8)
-	print("BACK from licences: screen=", Shell.current_screen)
+	print("ANDROID BACK from privacy: screen=", Shell.current_screen)
 	_back()
 	await _wait(0.8)
 	print("BACK from parent area: screen=", Shell.current_screen)

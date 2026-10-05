@@ -10,6 +10,7 @@ const TEXT_W: float = 1080.0 - SIDE * 2.0
 
 var scroll: ScrollContainer
 var body: VBoxContainer
+var back: ShellHomeButton  # top-left arrow (test hook)
 
 
 func build(title_text: String) -> void:
@@ -26,10 +27,12 @@ func build(title_text: String) -> void:
 	body.add_theme_constant_override("separation", 22)
 	body.custom_minimum_size = Vector2(TEXT_W, 0)
 	scroll.add_child(body)
-	var home := ShellHomeButton.new()
-	home.guard = false
-	home.leave_requested.connect(Shell.goto.bind("start", ""))
-	add_child(home)
+	# Top-left back arrow: one tap goes up to the parent area, like Android back.
+	back = ShellHomeButton.new()
+	back.guard = false
+	back.back_arrow = true
+	back.leave_requested.connect(on_back)
+	add_child(back)
 
 
 func heading(text: String) -> void:

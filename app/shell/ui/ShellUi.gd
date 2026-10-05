@@ -126,6 +126,22 @@ static func draw_house(ci: CanvasItem, c: Vector2, s: float, col: Color) -> void
 	ci.draw_rect(Rect2(c + Vector2(-0.1 * s, 0.16 * s), Vector2(0.2 * s, 0.32 * s)), CARD)
 
 
+## Left-pointing arrow (back to the parent screen): a shaft and an open head,
+## sized like the house glyph so the two discs read as one family.
+static func draw_back_arrow(ci: CanvasItem, c: Vector2, s: float, col: Color) -> void:
+	var w := s * 0.14
+	var tip := c + Vector2(-0.42, 0.0) * s
+	ci.draw_line(tip + Vector2(w * 0.3, 0), c + Vector2(0.42, 0.0) * s, col, w, true)
+	var head := PackedVector2Array(
+		[c + Vector2(-0.06, -0.38) * s, tip, c + Vector2(-0.06, 0.38) * s]
+	)
+	ci.draw_polyline(head, col, w, true)
+	ci.draw_circle(tip, w * 0.5, col)
+	ci.draw_circle(head[0], w * 0.5, col)
+	ci.draw_circle(head[2], w * 0.5, col)
+	ci.draw_circle(c + Vector2(0.42, 0.0) * s, w * 0.5, col)
+
+
 static func draw_gear(ci: CanvasItem, c: Vector2, s: float, col: Color, hole: Color) -> void:
 	var r_out := s * 0.5
 	var r_in := s * 0.36
