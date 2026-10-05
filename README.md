@@ -1,6 +1,6 @@
 # MWM Play
 
-One Android app with calm puzzle and play games for children and families. No ads, no tracking, no data collected, works offline. Children can try every game for free; a parent can unlock everything with one payment behind a parent gate.
+One Android app with calm puzzle and play games for children and families. No ads, no tracking, no data collected, works offline. Planned exception: chess will get optional play between two phones (same Wi-Fi or online, end-to-end encrypted, behind the parent gate), which gives the whole app the internet permission; see [docs/INTERNET.md](docs/INTERNET.md) for why and what uses it. Children can try every game for free; a parent can unlock everything with one payment behind a parent gate.
 
 Website and privacy policy: https://play.mwmai.no
 
