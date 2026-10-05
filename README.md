@@ -4,6 +4,10 @@ One Android app with calm puzzle and play games for children and families. No ad
 
 Website and privacy policy: https://play.mwmai.no
 
+![MWM Play: start screen, Tile Explorer, Timber Valley and the parent area](docs/images/screens.png)
+
+**Getting around:** the round house button in the top-left corner leads back to the start screen from every game and every adult page. Inside a game it needs two taps within 2 seconds, so a child does not leave by accident. Android's back gesture works too.
+
 ## Download
 
 Latest test build (debug APK, Android 7.0+, arm64 and 32-bit ARM, about 195 MB):
