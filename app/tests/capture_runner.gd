@@ -2,6 +2,8 @@ extends Node
 
 ## Dev-only screenshot bot for the shell. Walks: start -> Ball Connect ->
 ## home (two taps) -> start -> Water Sort -> Android back (twice) -> start ->
+## Timber Valley (joystick vs home tap, earn money) -> home -> Water Sort ->
+## home -> Timber Valley again (money and offline earnings kept) -> start ->
 ## gear -> gate -> wrong code -> right code -> parent area -> licences, then
 ## checks saved progress and the play-limit stop. Taps are real touch events;
 ## Android back is the real window notification. Run under Xvfb with
@@ -12,20 +14,33 @@ var n_shot: int = 0
 
 
 func _ready() -> void:
-	get_tree().create_timer(180.0).timeout.connect(func() -> void:
-		print("CAPTURE TIMEOUT after 180 s")
+	get_tree().create_timer(400.0).timeout.connect(func() -> void:
+		print("CAPTURE TIMEOUT after 400 s")
 		get_tree().quit(1))
 	_run.call_deferred()
 
 
 func _run() -> void:
-	for f in ["mwm_play_settings.json", "water-sort_save.cfg", "ball_connect_save.json"]:
+	for f in [
+		"mwm_play_settings.json",
+		"water-sort_save.cfg",
+		"ball_connect_save.json",
+		"timber_valley_save.json",
+	]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path("user://" + f))
 	# Seed Ball Connect at old level 3 (save v1) to prove the merged game reads
 	# its own save; v2 renumbering maps it to level 6.
 	var seed := FileAccess.open("user://ball_connect_save.json", FileAccess.WRITE)
 	seed.store_string('{"version": 1, "current_level": 3, "highest_level": 3}')
 	seed.close()
+	# Seed Timber Valley: $5000 and a valley earning $10/s, saved one hour ago,
+	# so the first enter pays 3600 s x $10 x 50% = $18000 offline, once.
+	var tv := FileAccess.open("user://timber_valley_save.json", FileAccess.WRITE)
+	tv.store_string(JSON.stringify({
+		"version": 4, "money": 5000, "total_earned": 5000, "ledger": {"2": 10.0},
+		"saved_at": int(Time.get_unix_time_from_system()) - 3600,
+	}))
+	tv.close()
 	Shell.reset_settings()
 
 	Shell.goto("start", "", false)
@@ -78,6 +93,8 @@ func _run() -> void:
 	_print_file("user://water-sort_save.cfg")
 	_music_check("start screen after Water Sort")
 	await _shot("start_after_water_sort")
+
+	await _timber_round_trip()
 
 	# ---- Parent gate and parent area
 	await _tap(_center(_scene().adult_corner))
@@ -163,7 +180,91 @@ func _run() -> void:
 	get_tree().quit()
 
 
+# ---------------------------------------------------------------- Timber Valley
+
+
+func _timber_round_trip() -> void:
+	await _tap(_center(_scene().tiles["timber-valley"]))
+	await _wait(3.0)
+	print("SCENE ", _scene().scene_file_path)
+	_timber_state("TIMBER first enter")
+	for p in Shell.playing_players():
+		var sp: String = p.get("stream").resource_path
+		print("  playing in game: ", p.name, " stream=", sp, " bus=", p.get("bus"))
+	print("  msaa_3d=", get_tree().root.msaa_3d, " meta=", Engine.get_meta(&"mwm_play_shell", false))
+	await _shot("timber")
+
+	# Joystick probe. Control: a touch in open grass starts the joystick.
+	var hud: Node = TimberGame.hud
+	await _touch(Vector2(540, 1300), true)
+	print("JOY control touch (540,1300): ", _joy(hud))
+	await _shot("timber_joystick_control")
+	await _touch(Vector2(540, 1300), false)
+	print("JOY after release: ", _joy(hud))
+	await _wait(0.5)
+	# The home disc: first tap starts the guard and must never start the joystick.
+	await _touch(Vector2(104, 104), true)
+	print("JOY during home press (104,104): ", _joy(hud))
+	await _touch(Vector2(104, 104), false)
+	print("HOME guard active=", Shell._home.guard_active(), "  JOY after home tap: ", _joy(hud))
+	await _shot("timber_home_guard")
+	TimberGame.add_money(250, 1)
+	print("TIMBER earned 250 in game: money=", TimberGame.money)
+	await _wait(0.5)
+	await _tap(Vector2(104, 104))
+	await _wait(1.0)
+	print("AFTER Timber home: screen=", Shell.current_screen, " scene=", _scene().name)
+	print("  parked: ", Shell._parked.keys(), " in tree: ", TimberGame.is_inside_tree())
+	print("  refs nulled: ", [TimberGame.world, TimberGame.player, TimberGame.hud])
+	print("  msaa_3d=", get_tree().root.msaa_3d, " meta=", Engine.has_meta(&"mwm_play_shell"))
+	_print_file("user://timber_valley_save.json")
+	_music_check("start screen after Timber Valley")
+
+	await _tap(_center(_scene().tiles["water-sort"]))
+	await _wait(1.5)
+	print("WATER SORT between Timber visits: ", _scene().level_label.text)
+	_music_check("Water Sort after Timber (no Timber music)")
+	await _shot("water_sort_after_timber")
+	await _tap(Vector2(104, 104))
+	await _wait(0.5)
+	await _tap(Vector2(104, 104))
+	await _wait(1.0)
+
+	await _tap(_center(_scene().tiles["timber-valley"]))
+	await _wait(3.0)
+	_timber_state("TIMBER re-enter")
+	var refs: Array[bool] = []
+	for r in [TimberGame.world, TimberGame.player, TimberGame.hud]:
+		refs.append(is_instance_valid(r))
+	print("  refs set again (world, player, hud): ", refs)
+	await _shot("timber_reenter")
+	await _tap(Vector2(104, 104))
+	await _wait(0.5)
+	await _tap(Vector2(104, 104))
+	await _wait(1.0)
+	print("AFTER second Timber home: screen=", Shell.current_screen)
+	_music_check("start screen after Timber again")
+	await _shot("start_after_timber")
+
+
+func _timber_state(tag: String) -> void:
+	var g: Node = TimberGame
+	print(tag, ": money=", g.money, " offline_pending=", g.offline_pending, " total=", g.total_earned)
+
+
+func _joy(hud: Node) -> String:
+	return "active=%s visible=%s" % [hud._touch_index != -1, hud.joy_base.visible]
+
+
 # ---------------------------------------------------------------- helpers
+
+
+func _touch(p: Vector2, pressed: bool) -> void:
+	var ev := InputEventScreenTouch.new()
+	ev.pressed = pressed
+	ev.position = p
+	Input.parse_input_event(ev)
+	await _frames(3)
 
 
 func _scene() -> Node:

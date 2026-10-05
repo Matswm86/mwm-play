@@ -16,7 +16,7 @@ const SCREENS := {
 	"done": "res://shell/screens/DoneForNow.tscn",
 }
 ## Games integrated in this build, in tile order. Cards exist only for these.
-const GAMES := ["ball-connect", "water-sort"]
+const GAMES := ["ball-connect", "water-sort", "timber-valley"]
 ## Ignore every touch for this long after a screen change (rule 8).
 const HOLDOVER_MS: int = 300
 const CROSSFADE_S: float = 0.18
@@ -365,6 +365,14 @@ func _park(name: String) -> void:
 	if node != null and node != self:
 		get_tree().root.remove_child(node)
 		_parked[name] = node
+
+
+## Parked autoloads are outside the tree, so the engine would not free them
+## at quit (leaked music streams in the log).
+func _exit_tree() -> void:
+	for node in _parked.values():
+		(node as Node).free()
+	_parked.clear()
 
 
 func _unpark(name: String) -> void:

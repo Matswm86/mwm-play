@@ -90,7 +90,7 @@ func _make_tile(a: ShellAdapter) -> ShellTap:
 	var pressed := ShellUi.box(ShellUi.GREEN_SOFT, 40, ShellUi.EDGE, 3)
 	t.set_meta("normal", normal)
 	t.set_meta("pressed", pressed)
-	t.tapped.connect(Shell.launch.bind(a.slug))
+	t.tapped.connect(Shell.launch.bind(a.slug), CONNECT_DEFERRED)
 	t.down_changed.connect(_on_tile_down.bind(t, body))
 	return t
 
