@@ -1,0 +1,37 @@
+; Engine configuration file.
+
+config_version=5
+
+[application]
+
+config/name="MWM Play"
+config/description="Games for children. No ads, no tracking."
+config/version="0.1.0"
+run/main_scene="res://shell/screens/Launcher.tscn"
+config/features=PackedStringArray("4.6", "Mobile")
+config/icon="res://icon.png"
+config/quit_on_go_back=false
+
+[autoload]
+
+Shell="*res://shell/Shell.gd"
+PerfOverlay="*res://shell/PerfOverlay.gd"
+
+[display]
+
+window/size/viewport_width=1080
+window/size/viewport_height=1920
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=1
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=true
+
+[rendering]
+
+renderer/rendering_method="mobile"
+renderer/rendering_method.mobile="mobile"
+textures/vram_compression/import_etc2_astc=true
+environment/defaults/default_clear_color=Color(0.984, 0.973, 0.949, 1)

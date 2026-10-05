@@ -1,0 +1,59 @@
+[gd_scene load_steps=4 format=3 uid="uid://b1gamex0001"]
+
+[ext_resource type="Script" path="res://games/ball-connect/scripts/GameManager.gd" id="1_gm"]
+[ext_resource type="Script" path="res://games/ball-connect/scripts/LineDrawer.gd" id="2_ld"]
+[ext_resource type="Script" path="res://games/ball-connect/scripts/Board3D.gd" id="3_b3d"]
+
+[node name="Game" type="Node2D"]
+script = ExtResource("1_gm")
+
+[node name="Board3D" type="Node3D" parent="."]
+script = ExtResource("3_b3d")
+
+[node name="LineDrawer" type="Node2D" parent="."]
+visible = false
+script = ExtResource("2_ld")
+
+[node name="BallLayer" type="Node2D" parent="."]
+visible = false
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="LevelLabel" type="Label" parent="UI"]
+offset_left = 40.0
+offset_top = 40.0
+offset_right = 1040.0
+offset_bottom = 140.0
+theme_override_font_sizes/font_size = 64
+horizontal_alignment = 1
+text = "Level 1"
+
+[node name="HintLabel" type="Label" parent="UI"]
+offset_left = 40.0
+offset_top = 1820.0
+offset_right = 1040.0
+offset_bottom = 1900.0
+theme_override_font_sizes/font_size = 36
+horizontal_alignment = 1
+text = ""
+visible = false
+
+[node name="WinLabel" type="Label" parent="UI"]
+offset_left = 40.0
+offset_top = 800.0
+offset_right = 1040.0
+offset_bottom = 1100.0
+theme_override_font_sizes/font_size = 80
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+text = "Level Complete"
+visible = false
+
+[node name="ResetButton" type="Button" parent="UI"]
+offset_left = 40.0
+offset_top = 1700.0
+offset_right = 1040.0
+offset_bottom = 1810.0
+theme_override_font_sizes/font_size = 56
+text = "Reset Level"

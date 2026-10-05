@@ -1,0 +1,12 @@
+{
+  "ball-connect": {
+    "repo": "../ball-connect",
+    "prefix": "Bc",
+    "autoloads": {}
+  },
+  "water-sort": {
+    "repo": "../water-sort",
+    "prefix": "Ws",
+    "autoloads": {}
+  }
+}

@@ -1,0 +1,2 @@
+# Mockup render scripts are throwaway design tools, not shipped code.
+extend-exclude = ["docs/mockups/src"]

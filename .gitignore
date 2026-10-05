@@ -1,0 +1,23 @@
+# Godot cache (re-created by --import)
+.godot/
+app/.godot/
+
+# CI build output and the Gradle template CI installs
+*.apk
+*.aab
+*.idsig
+export.log
+app/android/
+app/godot
+app/*.zip
+app/*.tpz
+debug.keystore
+*.keystore
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+__pycache__/
