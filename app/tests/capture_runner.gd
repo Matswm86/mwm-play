@@ -4,6 +4,8 @@ extends Node
 ## home (two taps) -> start -> Water Sort -> Android back (twice) -> start ->
 ## Timber Valley (joystick vs home tap, earn money) -> home -> Water Sort ->
 ## home -> Timber Valley again (money and offline earnings kept) -> start ->
+## Spotless (finish an object, win card) -> home -> Timber Valley -> home ->
+## Spotless again (level kept, own sound-off setting kept, Master unmuted) ->
 ## gear -> gate -> wrong code -> right code -> parent area -> licences, then
 ## checks saved progress and the play-limit stop. Taps are real touch events;
 ## Android back is the real window notification. Run under Xvfb with
@@ -14,8 +16,8 @@ var n_shot: int = 0
 
 
 func _ready() -> void:
-	get_tree().create_timer(400.0).timeout.connect(func() -> void:
-		print("CAPTURE TIMEOUT after 400 s")
+	get_tree().create_timer(500.0).timeout.connect(func() -> void:
+		print("CAPTURE TIMEOUT after 500 s")
 		get_tree().quit(1))
 	_run.call_deferred()
 
@@ -26,6 +28,7 @@ func _run() -> void:
 		"water-sort_save.cfg",
 		"ball_connect_save.json",
 		"timber_valley_save.json",
+		"spotless_save.json",
 	]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path("user://" + f))
 	# Seed Ball Connect at old level 3 (save v1) to prove the merged game reads
@@ -41,6 +44,11 @@ func _run() -> void:
 		"saved_at": int(Time.get_unix_time_from_system()) - 3600,
 	}))
 	tv.close()
+	# Seed Spotless at level 2 with its own sound switch off (set standalone):
+	# inside the shell that switch is hidden and must not mute anything.
+	var sp := FileAccess.open("user://spotless_save.json", FileAccess.WRITE)
+	sp.store_string('{"level": 2, "sound": false, "music": true}')
+	sp.close()
 	Shell.reset_settings()
 
 	Shell.goto("start", "", false)
@@ -95,6 +103,7 @@ func _run() -> void:
 	await _shot("start_after_water_sort")
 
 	await _timber_round_trip()
+	await _spotless_round_trip()
 
 	# ---- Parent gate and parent area
 	await _tap(_center(_scene().adult_corner))
@@ -211,6 +220,12 @@ func _timber_round_trip() -> void:
 	TimberGame.add_money(250, 1)
 	print("TIMBER earned 250 in game: money=", TimberGame.money)
 	await _wait(0.5)
+	# The shot above can take longer than the 2 s guard on a busy laptop; the
+	# guard was proven above, so re-arm it instead of failing the whole walk.
+	if not Shell._home.guard_active():
+		print("  guard expired during the shot; re-arming")
+		await _tap(Vector2(104, 104))
+		await _wait(0.3)
 	await _tap(Vector2(104, 104))
 	await _wait(1.0)
 	print("AFTER Timber home: screen=", Shell.current_screen, " scene=", _scene().name)
@@ -245,6 +260,73 @@ func _timber_round_trip() -> void:
 	print("AFTER second Timber home: screen=", Shell.current_screen)
 	_music_check("start screen after Timber again")
 	await _shot("start_after_timber")
+
+
+# ---------------------------------------------------------------- Spotless
+
+
+func _spotless_round_trip() -> void:
+	await _tap(_center(_scene().tiles["spotless"]))
+	await _wait(3.0)
+	_spotless_state("SPOTLESS first enter")
+	await _shot("spotless")
+	# Dev shortcut: finish the current object, which shows the win card (the
+	# play-limit stopping point) and saves the next level.
+	_scene().call("_complete")
+	await _wait(2.0)
+	print("  stopping point: ", Shell.adapters["spotless"].is_at_stopping_point(_scene()))
+	_spotless_state("SPOTLESS after win")
+	await _shot("spotless_win")
+	await _tap(Vector2(104, 104))
+	await _wait(0.5)
+	await _tap(Vector2(104, 104))
+	await _wait(1.0)
+	print("AFTER Spotless home: screen=", Shell.current_screen, " scene=", _scene().name)
+	print("  parked: ", Shell._parked.keys(), " in tree: ", SpotlessGame.is_inside_tree())
+	print("  msaa_3d=", get_tree().root.msaa_3d, " meta=", Engine.has_meta(&"mwm_play_shell"))
+	_print_file("user://spotless_save.json")
+	_music_check("start screen after Spotless")
+
+	await _tap(_center(_scene().tiles["timber-valley"]))
+	await _wait(3.0)
+	_music_check("Timber after Spotless (no Spotless music)")
+	await _shot("timber_after_spotless")
+	await _tap(Vector2(104, 104))
+	await _wait(0.5)
+	await _tap(Vector2(104, 104))
+	await _wait(1.0)
+	_music_check("start screen after Timber, before Spotless again")
+
+	await _tap(_center(_scene().tiles["spotless"]))
+	await _wait(3.0)
+	_spotless_state("SPOTLESS re-enter")
+	await _shot("spotless_reenter")
+	await _tap(Vector2(104, 104))
+	await _wait(0.5)
+	await _tap(Vector2(104, 104))
+	await _wait(1.0)
+	print("AFTER second Spotless home: screen=", Shell.current_screen)
+	_music_check("start screen after Spotless again")
+	await _shot("start_after_spotless")
+
+
+func _spotless_state(tag: String) -> void:
+	var g: Node = SpotlessGame
+	var main: Node = _scene()
+	var hud: Node = main.get("hud")
+	print(
+		tag, ": scene=", main.scene_file_path, " Game.level=", g.level,
+		" Main.level_index=", main.get("level_index"), " state=", main.get("state"),
+		" sound_on=", g.sound_on, " music_on=", g.music_on,
+	)
+	print(
+		"  in_shell=", g.in_shell(), " Master muted=", AudioServer.is_bus_mute(0),
+		" sound/music buttons visible=", [hud.sound_btn.visible, hud.music_btn.visible],
+		" msaa_3d=", get_tree().root.msaa_3d,
+	)
+	for p in Shell.playing_players():
+		print("  playing in game: ", p.get_path(), " stream=", p.get("stream").resource_path,
+			" bus=", p.get("bus"))
 
 
 func _timber_state(tag: String) -> void:
