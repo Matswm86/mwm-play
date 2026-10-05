@@ -1,0 +1,102 @@
+{
+ "cell_px": 256,
+ "cols": 8,
+ "rows": 8,
+ "px_per_unit": 140,
+ "ground_y_px": 246,
+ "camera_pitch_deg": 52,
+ "facings": 4,
+ "note": "quad width = cell_px / px_per_unit model units (x instance scale); pivot = (0.5, ground_y_px / cell_px); tilt the quad to face the camera pitch; cell = kind_index * facings + facing",
+ "kinds": {
+  "tree_pineTallA_detailed": [
+   0,
+   1,
+   2,
+   3
+  ],
+  "tree_pineTallB_detailed": [
+   4,
+   5,
+   6,
+   7
+  ],
+  "tree_pineTallC_detailed": [
+   8,
+   9,
+   10,
+   11
+  ],
+  "tree_pineTallD_detailed": [
+   12,
+   13,
+   14,
+   15
+  ],
+  "tree_pineRoundA": [
+   16,
+   17,
+   18,
+   19
+  ],
+  "tree_pineRoundC": [
+   20,
+   21,
+   22,
+   23
+  ],
+  "tree_default_dark": [
+   24,
+   25,
+   26,
+   27
+  ],
+  "tree_default": [
+   28,
+   29,
+   30,
+   31
+  ],
+  "tree_detailed": [
+   32,
+   33,
+   34,
+   35
+  ],
+  "tree_oak": [
+   36,
+   37,
+   38,
+   39
+  ],
+  "tree_fat": [
+   40,
+   41,
+   42,
+   43
+  ],
+  "tree_pineDefaultB": [
+   44,
+   45,
+   46,
+   47
+  ],
+  "tree_birchA": [
+   48,
+   49,
+   50,
+   51
+  ],
+  "tree_birchB": [
+   52,
+   53,
+   54,
+   55
+  ],
+  "tree_birchC": [
+   56,
+   57,
+   58,
+   59
+  ]
+ }
+}

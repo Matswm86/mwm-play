@@ -1,0 +1,36 @@
+{
+ "cell_px": 256,
+ "cols": 4,
+ "rows": 4,
+ "px_per_unit": 140,
+ "ground_y_px": 246,
+ "camera_pitch_deg": 52,
+ "facings": 4,
+ "note": "same card as border_trees_atlas.json; the shader grid is 4 (not 8); cell = kind_index * facings + facing",
+ "kinds": {
+  "tree_station_lime": [
+   0,
+   1,
+   2,
+   3
+  ],
+  "tree_station_cone": [
+   4,
+   5,
+   6,
+   7
+  ],
+  "tree_mapleA": [
+   8,
+   9,
+   10,
+   11
+  ],
+  "tree_default": [
+   12,
+   13,
+   14,
+   15
+  ]
+ }
+}
