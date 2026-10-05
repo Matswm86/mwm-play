@@ -21,7 +21,8 @@ func _ready() -> void:
 func _run() -> void:
 	for f in ["mwm_play_settings.json", "water-sort_save.cfg", "ball_connect_save.json"]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path("user://" + f))
-	# Seed Ball Connect at level 3 to prove the merged game reads its own save.
+	# Seed Ball Connect at old level 3 (save v1) to prove the merged game reads
+	# its own save; v2 renumbering maps it to level 6.
 	var seed := FileAccess.open("user://ball_connect_save.json", FileAccess.WRITE)
 	seed.store_string('{"version": 1, "current_level": 3, "highest_level": 3}')
 	seed.close()
@@ -35,7 +36,7 @@ func _run() -> void:
 	# ---- Ball Connect: launch from the card, play one pair, leave with two taps
 	await _tap(_center(_scene().tiles["ball-connect"]))
 	await _wait(1.5)
-	print("SCENE ", _scene().scene_file_path, "  level label: ", _scene().level_label.text)
+	print("SCENE ", _scene().scene_file_path, "  level: ", _scene().current_level)
 	await _shot("ball_connect")
 	await _play_ball_connect_pair()
 	await _shot("ball_connect_played")
@@ -137,7 +138,7 @@ func _run() -> void:
 	# ---- Progress kept: relaunch both games
 	await _tap(_center(_scene().tiles["ball-connect"]))
 	await _wait(1.5)
-	print("RELAUNCH Ball Connect level label: ", _scene().level_label.text)
+	print("RELAUNCH Ball Connect level: ", _scene().current_level)
 	await _shot("ball_connect_relaunch")
 	await _tap(Vector2(104, 104))
 	await _wait(0.5)
@@ -208,7 +209,7 @@ func _play_ball_connect_pair() -> void:
 	var board: Node3D = game.get_node("Board3D")
 	var cam: Camera3D = get_viewport().get_camera_3d()
 	var pts: Array[Vector2] = []
-	# Level 3 (seeded save): the red pair is one straight line along the top.
+	# Level 6 (seeded save): the red pair is one straight line along the top.
 	for px in [Vector2(280, 380), Vector2(540, 380), Vector2(800, 380)]:
 		pts.append(cam.unproject_position(board.px_to_world(px, board.TUBE_HEIGHT)))
 	var down := InputEventScreenTouch.new()
