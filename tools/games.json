@@ -39,5 +39,10 @@
         "path": "scripts/Sfx.gd"
       }
     }
+  },
+  "tile-explorer": {
+    "repo": "../tile-explorer",
+    "prefix": "Te",
+    "autoloads": {}
   }
 }
