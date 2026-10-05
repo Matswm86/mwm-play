@@ -18,6 +18,8 @@ Shell="*res://shell/Shell.gd"
 PerfOverlay="*res://shell/PerfOverlay.gd"
 TimberGame="*res://games/timber-valley/scripts/Game.gd"
 TimberSfx="*res://games/timber-valley/scripts/Sfx.gd"
+SpotlessGame="*res://games/spotless/scripts/Game.gd"
+SpotlessSfx="*res://games/spotless/scripts/Sfx.gd"
 
 [display]
 
