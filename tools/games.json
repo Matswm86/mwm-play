@@ -25,5 +25,19 @@
     "exclude": [
       "scripts/PerfOverlay.gd"
     ]
+  },
+  "spotless": {
+    "repo": "../spotless",
+    "prefix": "Sp",
+    "autoloads": {
+      "Game": {
+        "name": "SpotlessGame",
+        "path": "scripts/Game.gd"
+      },
+      "Sfx": {
+        "name": "SpotlessSfx",
+        "path": "scripts/Sfx.gd"
+      }
+    }
   }
 }
