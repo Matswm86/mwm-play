@@ -25,7 +25,8 @@ const SYMBOL_MAP: Dictionary = {
 const SAVE_PATH: String = "user://ball_connect_save.json"
 ## Version 2 (2026-10-05): three easy levels were put in front, so old
 ## level N >= 2 is now level N + 3 and old level 1 maps to the new level 1.
-const SAVE_VERSION: int = 2
+## Version 3 adds "board": the finished lines of an unfinished level (rule 28).
+const SAVE_VERSION: int = 3
 const LEVELS_ADDED_IN_V2: int = 3
 ## The next-level arrow ignores taps until this long after a win, so the
 ## finger that finished the last line cannot skip the win screen by accident.
@@ -34,6 +35,14 @@ const NEXT_ARROW_DELAY: float = 0.9
 ## 13.7 mm at 430 dpi; the next arrow is 360 px = 22.9 / 21.3 mm.
 const RESTART_HIT: float = 232.0
 const NEXT_HIT: float = 360.0
+## Idle hint (rule 18): after this long without a touch on an unsolved
+## board, one pair pulses; at most once per this period.
+const IDLE_HINT_DELAY: float = 8.0
+## Top of the restart disc and level dots; a camera cutout deeper than this
+## pushes them down by the difference (same rule as the MWM Play home disc).
+const TOP_ROW_CLEAR: float = 36.0
+## Board px kept free inside the visible screen for tap cells and routes.
+const BOARD_MARGIN: float = 24.0
 
 @export var levels_path: String = "res://games/ball-connect/data/levels/"
 @export var start_level: int = 1
@@ -44,6 +53,11 @@ var balls: Array = []
 var ball_scene: PackedScene = preload("res://games/ball-connect/scenes/Ball.tscn")
 var won: bool = false
 var highest_level: int = 1
+## Test hook: a fake top safe-area inset in window px; < 0 = ask the display.
+var fake_safe_top: float = -1.0
+var _idle_since_ms: int = 0
+## Lines of the level the player left, from the save; used once by load_level.
+var _saved_board: Dictionary = {}
 
 @onready var ball_layer: Node2D = $BallLayer
 @onready var line_drawer: Node2D = $LineDrawer
@@ -62,13 +76,58 @@ func _ready() -> void:
 	_style_ui()
 	line_drawer.pair_completed.connect(_on_pair_completed)
 	line_drawer.drag_failed.connect(board_3d.play_fail)
+	line_drawer.line_cleared.connect(_save_board)
 	reset_button.pressed.connect(_on_reset_pressed)
+	reset_button.pass_through = _ball_at_screen
 	next_button.pressed.connect(_advance)
+	get_viewport().size_changed.connect(apply_safe_area)
+	apply_safe_area()
 	load_level(current_level)
 
 
 func _on_reset_pressed() -> void:
 	load_level(current_level)
+	_save_board()
+
+
+## Any touch stops the idle hint and restarts the idle clock.
+func _input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch or event is InputEventScreenDrag:
+		_idle_since_ms = Time.get_ticks_msec()
+		if board_3d.hint_active():
+			board_3d.stop_hint()
+
+
+func _process(_delta: float) -> void:
+	var now: int = Time.get_ticks_msec()
+	if won or balls.is_empty():
+		_idle_since_ms = now
+		return
+	if now - _idle_since_ms >= int(IDLE_HINT_DELAY * 1000.0):
+		_idle_since_ms = now
+		var pair: Array = _hint_pair()
+		if not pair.is_empty():
+			board_3d.show_hint(pair)
+
+
+## The pair to hint: the one in hand, else the closest unconnected pair (the
+## pair the level checker's solver tries first).
+func _hint_pair() -> Array:
+	var by_color: Dictionary = {}
+	for b in balls:
+		if not line_drawer.paths.has(b.color_name):
+			by_color[b.color_name] = by_color.get(b.color_name, []) + [b]
+	var held: Node2D = line_drawer.current_start_ball
+	if held != null and by_color.has(held.color_name):
+		return by_color[held.color_name]
+	var best: Array = []
+	var best_d: float = INF
+	for k in by_color:
+		var pr: Array = by_color[k]
+		if pr.size() == 2 and pr[0].position.distance_to(pr[1].position) < best_d:
+			best_d = pr[0].position.distance_to(pr[1].position)
+			best = pr
+	return best
 
 
 func load_level(n: int) -> void:
@@ -111,7 +170,35 @@ func load_level(n: int) -> void:
 		balls.append(ball)
 
 	line_drawer.setup(balls)
+	line_drawer.board_rect = _visible_board_rect()
 	board_3d.setup(balls)
+	_idle_since_ms = Time.get_ticks_msec()
+	if int(_saved_board.get("level", -1)) == n:
+		var saved: Variant = _saved_board.get("paths")
+		var ok: bool = saved is Dictionary and line_drawer.restore_paths(saved)
+		if ok and line_drawer.completed_pair_count() == _total_pairs():
+			line_drawer.setup(balls)  # a full board would be a win: start fresh
+			ok = false
+		if ok:
+			print("Save: board restored with %d lines" % line_drawer.completed_pair_count())
+		else:
+			print("Save: board not restored, fresh board")
+	_saved_board = {}
+
+
+## Board px rectangle that is on screen on every row (the camera tilts, so the
+## visible board is a slight trapezoid), less a small margin.
+func _visible_board_rect() -> Rect2:
+	var vs: Vector2 = get_viewport().get_visible_rect().size
+	var tl: Vector2 = board_3d.screen_to_board(Vector2.ZERO)
+	var tr: Vector2 = board_3d.screen_to_board(Vector2(vs.x, 0))
+	var bl: Vector2 = board_3d.screen_to_board(Vector2(0, vs.y))
+	var br: Vector2 = board_3d.screen_to_board(vs)
+	var left: float = maxf(tl.x, bl.x) + BOARD_MARGIN
+	var right: float = minf(tr.x, br.x) - BOARD_MARGIN
+	var top: float = maxf(tl.y, tr.y) + BOARD_MARGIN
+	var bottom: float = minf(bl.y, br.y) - BOARD_MARGIN
+	return Rect2(left, top, right - left, bottom - top)
 
 
 func _total_pairs() -> int:
@@ -122,7 +209,9 @@ func _total_pairs() -> int:
 
 
 func _on_pair_completed() -> void:
-	if line_drawer.completed_pair_count() == _total_pairs():
+	if line_drawer.completed_pair_count() < _total_pairs():
+		_save_board()
+	elif line_drawer.completed_pair_count() == _total_pairs():
 		won = true
 		line_drawer.enabled = false
 		reset_button.visible = false
@@ -152,8 +241,13 @@ func _notification(what: int) -> void:
 		_save_progress(_next_level() if won else current_level)
 
 
-# Level progress survives app restarts. Board state is not saved: the
-# player resumes at the start of the level they were on.
+func _save_board() -> void:
+	if not won:
+		_save_progress(current_level)
+
+
+# Level progress and the finished lines of an unfinished level survive app
+# restarts (rule 28). A line still being drawn is not saved.
 func _save_progress(level: int) -> void:
 	highest_level = maxi(highest_level, level)
 	var f: FileAccess = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -163,6 +257,14 @@ func _save_progress(level: int) -> void:
 	var data: Dictionary = {
 		"version": SAVE_VERSION, "current_level": level, "highest_level": highest_level
 	}
+	if not won and level == current_level and line_drawer.completed_pair_count() > 0:
+		var lines: Dictionary = {}
+		for color_key in line_drawer.paths:
+			var pts: Array = []
+			for v in line_drawer.paths[color_key]:
+				pts.append([snappedf(v.x, 0.01), snappedf(v.y, 0.01)])
+			lines[color_key] = pts
+		data["board"] = {"level": level, "paths": lines}
 	f.store_string(JSON.stringify(data))
 	f.close()
 
@@ -194,6 +296,9 @@ func _load_progress() -> void:
 		if (best is float or best is int)
 		else current_level
 	)
+	var board: Variant = data.get("board")
+	if not old_format and board is Dictionary:
+		_saved_board = board
 	print("Save: resuming at level %d (highest %d)" % [current_level, highest_level])
 
 
@@ -213,22 +318,7 @@ func _style_ui() -> void:
 	hint_label.offset_top = -110
 	hint_label.offset_bottom = -30
 
-	# Dots sit between the MWM Play home corner (top-left 232 px) and restart.
-	level_dots.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	level_dots.offset_left = -300
-	level_dots.offset_right = 300
-	level_dots.offset_top = 64
-	level_dots.offset_bottom = 144
-	level_dots.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	# Restart: touch area runs to the top-right screen corner (rule 7).
-	reset_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	reset_button.offset_left = -RESTART_HIT
-	reset_button.offset_right = 0
-	reset_button.offset_top = 0
-	reset_button.offset_bottom = RESTART_HIT
-	reset_button.disc_radius = 68.0
-	reset_button.disc_center = Vector2(RESTART_HIT - 104.0, 104.0)
+	apply_safe_area()
 
 	next_button.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	next_button.offset_left = -NEXT_HIT * 0.5
@@ -236,3 +326,46 @@ func _style_ui() -> void:
 	next_button.offset_top = -NEXT_HIT * 0.5
 	next_button.offset_bottom = NEXT_HIT * 0.5
 	next_button.disc_radius = NEXT_HIT * 0.5 - 20.0
+
+
+## A deep cutout pushes the restart area down into a top ball's touch area
+## on dense levels; there the ball wins the touch.
+func _ball_at_screen(p: Vector2) -> bool:
+	return line_drawer._nearest_ball(board_3d.screen_to_board(p), null, "") != null
+
+
+## Top-row controls (restart, level dots) move below a notch or punch-hole
+## camera; the restart touch area still runs to the top-right screen corner
+## (rule 7). Uses the display safe area on phones, or fake_safe_top in tests.
+func apply_safe_area() -> void:
+	var dy: float = maxf(0.0, safe_top_inset() - TOP_ROW_CLEAR)
+	# Dots sit between the MWM Play home corner (top-left 232 px) and restart.
+	level_dots.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	level_dots.offset_left = -300
+	level_dots.offset_right = 300
+	level_dots.offset_top = 64 + dy
+	level_dots.offset_bottom = 144 + dy
+	level_dots.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	reset_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	reset_button.offset_left = -RESTART_HIT
+	reset_button.offset_right = 0
+	reset_button.offset_top = 0
+	reset_button.offset_bottom = RESTART_HIT + dy
+	reset_button.disc_radius = 68.0
+	reset_button.disc_center = Vector2(RESTART_HIT - 104.0, 104.0 + dy)
+	reset_button.queue_redraw()
+
+
+## Depth of the top screen cutout in viewport px (0 on desktop and on phones
+## without a cutout in the drawn area).
+func safe_top_inset() -> float:
+	var top_px: float = fake_safe_top
+	if top_px < 0.0:
+		if not OS.has_feature("mobile"):
+			return 0.0
+		top_px = float(DisplayServer.get_display_safe_area().position.y)
+	var win: Vector2i = DisplayServer.window_get_size()
+	if win.y <= 0:
+		return 0.0
+	return maxf(0.0, top_px * get_viewport().get_visible_rect().size.y / float(win.y))

@@ -13,6 +13,11 @@ Usage: tools/sync_game.py <slug> [<sha>]
      -> renamed in code and registered in app/project.godot.
   4. "user://name -> "user://<slug>_name, unless the name already starts with
      the slug (ball_connect_save.json stays as it is).
+- Keeps the .import / .uid sidecars of the previous sync when the source repo
+  does not commit them (water-sort gitignores *.import) and the asset is still
+  there, so their uid:// values stay stable. Any importable asset still
+  without a .import afterwards gets one from `godot --headless --import`
+  ($GODOT or `godot` on PATH; without Godot the sync fails and says so).
 - Writes app/games/<slug>/SOURCE with the commit, then runs check_collisions.py.
 Never edit app/games/<slug>/ by hand: fix upstream, then sync again.
 """
@@ -21,6 +26,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -34,6 +40,29 @@ APP = ROOT / "app"
 RUNTIME_DIRS = ("scenes", "scripts", "assets", "data")
 TEXT_SUFFIXES = {".gd", ".tscn", ".tres", ".gdshader", ".import", ".cfg", ".json"}
 RES_RE = re.compile(r"res://(?!\.godot/)")
+SIDECARS = (".import", ".uid")
+IMPORTABLE = {
+    ".wav",
+    ".ogg",
+    ".mp3",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".webp",
+    ".svg",
+    ".bmp",
+    ".tga",
+    ".exr",
+    ".hdr",
+    ".glb",
+    ".gltf",
+    ".obj",
+    ".fbx",
+    ".ttf",
+    ".otf",
+    ".woff",
+    ".woff2",
+}
 
 
 class SyncError(Exception):
@@ -41,9 +70,13 @@ class SyncError(Exception):
 
 
 def git(repo: Path, *args: str, binary: bool = False) -> bytes | str:
-    out = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, check=False)
+    out = subprocess.run(
+        ["git", "-C", str(repo), *args], capture_output=True, check=False
+    )
     if out.returncode != 0:
-        raise SyncError(f"git {' '.join(args)} failed in {repo}: {out.stderr.decode().strip()}")
+        raise SyncError(
+            f"git {' '.join(args)} failed in {repo}: {out.stderr.decode().strip()}"
+        )
     return out.stdout if binary else out.stdout.decode().strip()
 
 
@@ -137,6 +170,69 @@ def register_autoloads(slug: str, autoloads: dict[str, dict[str, str]]) -> None:
     proj.write_text("\n".join(lines) + "\n")
 
 
+# ---------------------------------------------------------------- sidecars
+
+
+def keep_sidecars(old: Path, stage: Path) -> list[str]:
+    """Copy .import/.uid files from the previous sync into the new stage.
+
+    Only when the new archive lacks that sidecar and still has the file it
+    belongs to. They already carry the res://games/<slug>/ paths.
+    """
+    kept: list[str] = []
+    if not old.exists():
+        return kept
+    for side in old.rglob("*"):
+        if not side.is_file() or side.suffix not in SIDECARS:
+            continue
+        rel = side.relative_to(old)
+        if (stage / rel).exists() or not (stage / rel.with_suffix("")).is_file():
+            continue
+        shutil.copy2(side, stage / rel)
+        kept.append(str(rel))
+    return sorted(kept)
+
+
+def import_missing(dest: Path) -> None:
+    """Give every importable asset without a .import one via Godot's importer."""
+    missing = [
+        f
+        for f in dest.rglob("*")
+        if f.is_file()
+        and f.suffix.lower() in IMPORTABLE
+        and not f.with_name(f.name + ".import").exists()
+    ]
+    if not missing:
+        return
+    names = ", ".join(str(f.relative_to(dest)) for f in missing)
+    godot = os.environ.get("GODOT") or shutil.which("godot")
+    if not godot:
+        raise SyncError(
+            f"no .import for {names}; set GODOT=<godot binary> and sync again, "
+            "or run `godot --headless --import` in app/ and commit the new .import files"
+        )
+    print(f"  importing {len(missing)} new asset(s) without .import: {names}")
+    out = subprocess.run(
+        [
+            godot,
+            "--headless",
+            "--audio-driver",
+            "Dummy",
+            "--path",
+            str(APP),
+            "--import",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    still = [f for f in missing if not f.with_name(f.name + ".import").exists()]
+    if out.returncode != 0 or still:
+        raise SyncError(
+            f"godot --import failed ({out.returncode}); still missing: {still}"
+        )
+
+
 # ---------------------------------------------------------------- main
 
 
@@ -177,6 +273,7 @@ def sync(slug: str, sha: str | None) -> None:
                 f.write_text(new)
 
         (stage / "SOURCE").write_text(f"{full}\n")
+        kept = keep_sidecars(dest, stage)
         if dest.exists():
             shutil.rmtree(dest)
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -184,9 +281,20 @@ def sync(slug: str, sha: str | None) -> None:
 
     register_autoloads(slug, cfg.get("autoloads", {}))
     print(f"synced {slug} @ {full[:7]} -> {dest.relative_to(ROOT)} ({', '.join(dirs)})")
+    if kept:
+        print(
+            f"  kept {len(kept)} sidecar(s) the source repo does not commit: "
+            + ", ".join(kept)
+        )
+    import_missing(dest)
     if classes:
-        print("  class_name: " + ", ".join(f"{a}->{b}" for a, b in sorted(classes.items())))
-    rc = subprocess.run([sys.executable, str(ROOT / "tools/check_collisions.py")], check=False)
+        print(
+            "  class_name: "
+            + ", ".join(f"{a}->{b}" for a, b in sorted(classes.items()))
+        )
+    rc = subprocess.run(
+        [sys.executable, str(ROOT / "tools/check_collisions.py")], check=False
+    )
     if rc.returncode != 0:
         raise SyncError("collision check failed; see above")
 
