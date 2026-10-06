@@ -6,7 +6,7 @@ Website and privacy policy: https://play.mwmai.no
 
 ![MWM Play: start screen, Tile Explorer, Timber Valley and the parent area](docs/images/screens.png)
 
-**Getting around:** the round house button in the top-left corner leads back to the start screen from every game and every adult page. Inside a game it needs two taps within 2 seconds, so a child does not leave by accident. Android's back gesture works too.
+**Getting around:** the round house button in the top-left corner leads back to the start screen from every game, the parent gate and the parent area ("For voksne"). Inside a game it needs two taps within 2 seconds, so a child does not leave by accident. On the adult sub-pages (privacy, licences, play-together tips) the same corner holds a back arrow that goes up to "For voksne". Android's back gesture works too.
 
 ## Download
 
@@ -28,8 +28,8 @@ More games join one at a time as they pass the child-safety checks in `docs/CHIL
 ## Layout
 
 - `app/`: the Godot 4.6 project (portrait 1080x1920, Mobile renderer). The shell lives in `app/shell/`, each game in `app/games/<slug>/`.
-- `tools/sync_game.py`: copies a game in from its own repo at a given commit and records the commit in `app/games/<slug>/SOURCE`. `tools/check_collisions.py` fails the build if two games share a class name, autoload or resource id.
-- `docs/`: design spec, child UX research (46 rules with sources), merge plan, mockups.
+- `tools/sync_game.py`: copies a game in from its own repo at a given commit and records the commit in `app/games/<slug>/SOURCE`. `tools/check_collisions.py` reports an error if two games share a class name, autoload, `user://` file name or resource id; `sync_game.py` runs it after every copy.
+- `docs/`: design spec, child UX research (46 rules with sources), merge plan, internet-permission note, QA report, mockups.
 - `site/`: the static page served at play.mwmai.no.
 
 ## Build
