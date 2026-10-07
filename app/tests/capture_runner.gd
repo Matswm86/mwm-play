@@ -34,6 +34,7 @@ func _run() -> void:
 		"timber_valley_save.json",
 		"spotless_save.json",
 		"tile_explorer_save.json",
+		"neon_bricks_save.json",
 	]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path("user://" + f))
 	# Seed Ball Connect at old level 3 (save v1) to prove the merged game reads
@@ -110,6 +111,7 @@ func _run() -> void:
 	await _timber_round_trip()
 	await _spotless_round_trip()
 	await _tile_explorer_round_trip()
+	await _neon_bricks_round_trip()
 
 	# ---- Parent gate and parent area
 	await _tap(_center(_scene().adult_corner))
@@ -489,6 +491,31 @@ func _input_probe(game: Node) -> Node:
 	n.set_script(s)
 	game.add_child(n)
 	return n
+
+
+## Neon Bricks: the card opens level 1 directly (first launch), free part
+## only (levels 1-3, no endless), own home disc and gears hidden, the
+## game's 2x MSAA on while it runs, the shell's settings back after.
+func _neon_bricks_round_trip() -> void:
+	await _tap(_center(_scene().tiles["neon-bricks"]))
+	await _wait(2.5)
+	var g: Node = _scene()
+	var root := get_tree().root
+	print("NEON scene=", g.scene_file_path, " screen=", g.get("screen"), " level=", g.play.level_id)
+	print("  msaa_3d=", root.msaa_3d, " (1 = MSAA_2X)  full_unlock=", NeonBricks.full_unlock)
+	print("  visible levels=", NeonBricks.visible_levels(), " endless=", NeonBricks.endless_available())
+	print("  own home disc visible=", g.home.visible, " own gear visible=", g.play_gear.visible)
+	_music_check("Neon Bricks level 1")
+	await _shot("neon_bricks_level1")
+	g.play.autopilot = true
+	await _wait(3.0)
+	print("  playing: ball state=", g.play.sim.state, " broken=", g.play.sim.start_breakable - g.play.sim.breakable_left)
+	await _shot("neon_bricks_play")
+	await _home_twice()
+	print("AFTER Neon Bricks: screen=", Shell.current_screen, " msaa_3d=", root.msaa_3d,
+		" NeonBricks in tree=", root.has_node("NeonBricks"))
+	_print_file("user://neon_bricks_save.json")
+	_music_check("start screen after Neon Bricks")
 
 
 func _home_twice() -> void:

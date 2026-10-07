@@ -22,6 +22,7 @@ Open the link on the phone, then allow "Install unknown apps" for the browser wh
 - Tile Explorer
 - Spotless
 - Timber Valley
+- Neon Bricks (free part: levels 1-3)
 
 More games join one at a time as they pass the child-safety checks in `docs/CHILD_UX_RESEARCH.md`.
 

@@ -16,7 +16,9 @@ const SCREENS := {
 	"done": "res://shell/screens/DoneForNow.tscn",
 }
 ## Games integrated in this build, in tile order. Cards exist only for these.
-const GAMES := ["ball-connect", "water-sort", "tile-explorer", "spotless", "timber-valley"]
+const GAMES := [
+	"ball-connect", "water-sort", "tile-explorer", "spotless", "timber-valley", "neon-bricks"
+]
 ## Ignore every touch for this long after a screen change (rule 8).
 const HOLDOVER_MS: int = 300
 const CROSSFADE_S: float = 0.18
@@ -135,6 +137,13 @@ func reset_settings() -> void:
 
 func limit_reached() -> bool:
 	return settings.limit_minutes > 0 and settings.used_seconds >= settings.limit_minutes * 60.0
+
+
+## The one-time unlock (parent area). Google Play Billing is not wired in
+## yet ("Kommer snart"), so every game runs its free part; Neon Bricks reads
+## this through set_full_unlock() on enter.
+func is_unlocked() -> bool:
+	return false
 
 
 func reset_used_time() -> void:

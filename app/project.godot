@@ -20,6 +20,7 @@ TimberGame="*res://games/timber-valley/scripts/Game.gd"
 TimberSfx="*res://games/timber-valley/scripts/Sfx.gd"
 SpotlessGame="*res://games/spotless/scripts/Game.gd"
 SpotlessSfx="*res://games/spotless/scripts/Sfx.gd"
+NeonBricks="*res://games/neon-bricks/scripts/NbState.gd"
 
 [display]
 

@@ -16,6 +16,7 @@ const BANDS := {
 	"tile-explorer": Color(0.941, 0.863, 0.769),
 	"spotless": Color(0.804, 0.933, 0.929),
 	"timber-valley": Color(0.847, 0.925, 0.796),
+	"neon-bricks": Color(0.976, 0.871, 0.886),
 }
 
 var tiles: Dictionary = {}  # slug -> ShellTap (test hook)
