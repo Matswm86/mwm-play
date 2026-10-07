@@ -10,7 +10,7 @@ Website and privacy policy: https://play.mwmai.no
 
 ## Download
 
-Latest test build (debug APK, Android 7.0+, arm64 and 32-bit ARM, about 195 MB):
+Latest test build (debug APK, Android 7.0+, arm64 and 32-bit ARM, about 230 MB):
 **https://github.com/Matswm86/mwm-play/releases/download/latest/mwm-play.apk**
 
 Open the link on the phone, then allow "Install unknown apps" for the browser when Android asks. The link always points to the newest build from `main`.
