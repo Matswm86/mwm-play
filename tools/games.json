@@ -44,5 +44,18 @@
     "repo": "../tile-explorer",
     "prefix": "Te",
     "autoloads": {}
+  },
+  "neon-bricks": {
+    "repo": "../mwm-neon-bricks",
+    "prefix": "Nb",
+    "autoloads": {
+      "NeonBricks": {
+        "name": "NeonBricks",
+        "path": "scripts/NbState.gd"
+      }
+    },
+    "exclude": [
+      "scripts/PerfOverlay.gd"
+    ]
   }
 }

@@ -5,10 +5,11 @@ Usage: tools/sync_game.py <slug> [<sha>]
 
 - Reads committed code only, with `git archive <sha>` from the sibling repo
   named in tools/games.json. Refuses a dirty work tree or an unpushed HEAD.
-- Copies only the runtime folders: scenes, scripts, assets, data.
+- Copies only the runtime folders: scenes, scripts, assets, data, shaders.
 - Rewrites, all mechanical and repeatable:
   1. res://X -> res://games/<slug>/X in text files (res://.godot/ is kept).
-  2. class_name X -> <Prefix>X, plus every use of X in that game's .gd files.
+  2. class_name X -> <Prefix>X, plus every use of X in that game's .gd files
+     (names that already start with the prefix, like NbSim, stay as they are).
   3. Autoload names (games.json "autoloads": {"Old": {"name": "New", "path": "scripts/Old.gd"}})
      -> renamed in code and registered in app/project.godot.
   4. "user://name -> "user://<slug>_name, unless the name already starts with
@@ -42,7 +43,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 APP = ROOT / "app"
-RUNTIME_DIRS = ("scenes", "scripts", "assets", "data")
+RUNTIME_DIRS = ("scenes", "scripts", "assets", "data", "shaders")
 TEXT_SUFFIXES = {".gd", ".tscn", ".tres", ".gdshader", ".import", ".cfg", ".json"}
 RES_RE = re.compile(r"res://(?!\.godot/)")
 OWNER_RE = re.compile(r"\bMats\b")
@@ -270,7 +271,13 @@ def sync(slug: str, sha: str | None) -> None:
         classes: dict[str, str] = {}
         for gd in stage.rglob("*.gd"):
             for m in re.finditer(r"^class_name\s+(\w+)", gd.read_text(), re.M):
-                classes[m.group(1)] = cfg["prefix"] + m.group(1)
+                name = m.group(1)
+                # Games that already prefix every class (Neon Bricks: NbSim,
+                # NbWorld) keep their names instead of becoming NbNbSim.
+                pre = cfg["prefix"]
+                if name.startswith(pre) and name[len(pre) : len(pre) + 1].isupper():
+                    continue
+                classes[name] = pre + name
         names = dict(classes)
         names.update({old: a["name"] for old, a in cfg.get("autoloads", {}).items()})
 
